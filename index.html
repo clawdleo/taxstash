@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaxStash - Know What to Save for Taxes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Outfit', sans-serif; }
+        .gradient-emerald { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .gradient-dark { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen">
+    <!-- Header -->
+    <nav class="border-b border-slate-700 py-6">
+        <div class="container mx-auto px-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold">💰 TaxStash</h1>
+                <p class="text-slate-400 text-sm">Know exactly what to set aside</p>
+            </div>
+            <select id="countrySelect" onchange="updateCountry()" class="bg-slate-800 border border-slate-600 rounded-lg px-4 py-2 text-sm">
+                <option value="DE">🇩🇪 Germany</option>
+                <option value="AT">🇦🇹 Austria</option>
+                <option value="NL">🇳🇱 Netherlands</option>
+                <option value="UK">🇬🇧 United Kingdom</option>
+                <option value="US">🇺🇸 United States</option>
+                <option value="HR">🇭🇷 Croatia</option>
+                <option value="SI">🇸🇮 Slovenia</option>
+            </select>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="grid lg:grid-cols-3 gap-8">
+            <!-- Input Section -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Income Input -->
+                <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+                    <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <span>📥</span> Your Side Hustle Income
+                    </h2>
+                    
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm text-slate-400 mb-2">Time Period</label>
+                            <select id="timePeriod" onchange="calculate()" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3">
+                                <option value="monthly">Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                                <option value="yearly" selected>Yearly</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-slate-400 mb-2">Gross Income</label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">€</span>
+                                <input type="number" id="grossIncome" placeholder="0" onchange="calculate()" oninput="calculate()"
+                                    class="w-full bg-slate-700 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-xl font-semibold">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <label class="block text-sm text-slate-400 mb-2">Business Expenses (deductible)</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">€</span>
+                            <input type="number" id="expenses" placeholder="0" onchange="calculate()" oninput="calculate()"
+                                class="w-full bg-slate-700 border border-slate-600 rounded-xl pl-10 pr-4 py-3">
+                        </div>
+                        <p class="text-xs text-slate-500 mt-2">Software, equipment, home office, travel, etc.</p>
+                    </div>
+                </div>
+
+                <!-- Quick Presets -->
+                <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+                    <h2 class="text-lg font-semibold mb-4">⚡ Quick Scenarios</h2>
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="setPreset(500, 'monthly')" class="px-4 py-2 bg-slate-700 rounded-lg hover:bg-slate-600 transition text-sm">
+                            €500/mo side gig
+                        </button>
+                        <button onclick="setPreset(1000, 'monthly')" class="px-4 py-2 bg-slate-700 rounded-lg hover:bg-slate-600 transition text-sm">
+                            €1k/mo freelance
+                        </button>
+                        <button onclick="setPreset(3000, 'monthly')" class="px-4 py-2 bg-slate-700 rounded-lg hover:bg-slate-600 transition text-sm">
+                            €3k/mo consultant
+                        </button>
+                        <button onclick="setPreset(50000, 'yearly')" class="px-4 py-2 bg-slate-700 rounded-lg hover:bg-slate-600 transition text-sm">
+                            €50k/yr business
+                        </button>
+                        <button onclick="setPreset(100000, 'yearly')" class="px-4 py-2 bg-slate-700 rounded-lg hover:bg-slate-600 transition text-sm">
+                            €100k/yr startup
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Breakdown -->
+                <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+                    <h2 class="text-lg font-semibold mb-4">📊 Tax Breakdown</h2>
+                    <div class="space-y-4" id="breakdownList">
+                        <!-- Will be populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Chart -->
+                <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+                    <h2 class="text-lg font-semibold mb-4">📈 Your Money Split</h2>
+                    <div class="h-64">
+                        <canvas id="taxChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="space-y-6">
+                <!-- Main Result Card -->
+                <div class="gradient-emerald rounded-2xl p-6 text-center">
+                    <p class="text-emerald-100 mb-2">Set aside for taxes</p>
+                    <div class="text-5xl font-bold mb-2" id="taxAmount">€0</div>
+                    <p class="text-emerald-100 text-sm" id="taxPeriod">per year</p>
+                    <div class="mt-4 pt-4 border-t border-emerald-400/30">
+                        <p class="text-emerald-100 text-sm">Effective tax rate</p>
+                        <p class="text-2xl font-bold" id="effectiveRate">0%</p>
+                    </div>
+                </div>
+
+                <!-- What You Keep -->
+                <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+                    <h3 class="text-lg font-semibold mb-4">💵 What You Keep</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400">Gross Income</span>
+                            <span class="font-semibold" id="displayGross">€0</span>
+                        </div>
+                        <div class="flex justify-between items-center text-red-400">
+                            <span>- Taxes</span>
+                            <span class="font-semibold" id="displayTax">€0</span>
+                        </div>
+                        <div class="flex justify-between items-center text-amber-400">
+                            <span>- Expenses</span>
+                            <span class="font-semibold" id="displayExpenses">€0</span>
+                        </div>
+                        <div class="border-t border-slate-600 pt-4 flex justify-between items-center">
+                            <span class="text-lg font-semibold">Net Income</span>
+                            <span class="text-2xl font-bold text-emerald-400" id="netIncome">€0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monthly Breakdown -->
+                <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+                    <h3 class="text-lg font-semibold mb-4">📅 Monthly Amounts</h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Save for taxes</span>
+                            <span class="font-semibold text-red-400" id="monthlyTax">€0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">You keep</span>
+                            <span class="font-semibold text-emerald-400" id="monthlyNet">€0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tips -->
+                <div class="bg-amber-900/30 border border-amber-700/50 rounded-2xl p-6">
+                    <h3 class="text-amber-400 font-semibold mb-3">💡 Pro Tips</h3>
+                    <ul class="text-sm text-amber-200/80 space-y-2" id="tipsList">
+                        <li>• Open a separate savings account for taxes</li>
+                        <li>• Transfer your tax amount immediately when paid</li>
+                        <li>• Keep receipts for all business expenses</li>
+                    </ul>
+                </div>
+
+                <!-- Disclaimer -->
+                <p class="text-xs text-slate-500 text-center">
+                    ⚠️ This is an estimate only. Consult a tax professional for accurate advice.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tax brackets by country (simplified)
+        const taxRules = {
+            DE: {
+                name: 'Germany',
+                currency: '€',
+                brackets: [
+                    { limit: 10908, rate: 0 },
+                    { limit: 62809, rate: 0.14, progressive: true },
+                    { limit: 277825, rate: 0.42 },
+                    { limit: Infinity, rate: 0.45 }
+                ],
+                socialSecurity: 0.18, // Approximate self-employed rate
+                vat: 0.19,
+                vatThreshold: 22000,
+                tips: [
+                    "• Under €22k/year? You might qualify for Kleinunternehmer (no VAT)",
+                    "• Quarterly advance payments (Vorauszahlungen) are required",
+                    "• Home office: €1,260/year flat rate or actual costs"
+                ]
+            },
+            AT: {
+                name: 'Austria',
+                currency: '€',
+                brackets: [
+                    { limit: 11693, rate: 0 },
+                    { limit: 19134, rate: 0.20 },
+                    { limit: 32075, rate: 0.30 },
+                    { limit: 62080, rate: 0.41 },
+                    { limit: 93120, rate: 0.48 },
+                    { limit: Infinity, rate: 0.50 }
+                ],
+                socialSecurity: 0.27,
+                vat: 0.20,
+                vatThreshold: 35000,
+                tips: [
+                    "• Kleinunternehmer threshold: €35k/year (no VAT)",
+                    "• Social security (SVS) is mandatory for self-employed",
+                    "• Quarterly advance payments required"
+                ]
+            },
+            NL: {
+                name: 'Netherlands',
+                currency: '€',
+                brackets: [
+                    { limit: 73031, rate: 0.3693 },
+                    { limit: Infinity, rate: 0.495 }
+                ],
+                socialSecurity: 0.05,
+                vat: 0.21,
+                vatThreshold: 20000,
+                tips: [
+                    "• ZZP (self-employed) can claim zelfstandigenaftrek (€7,030)",
+                    "• Startersaftrek for first 3 years (€2,123 extra)",
+                    "• KOR scheme for small businesses under €20k"
+                ]
+            },
+            UK: {
+                name: 'United Kingdom',
+                currency: '£',
+                brackets: [
+                    { limit: 12570, rate: 0 },
+                    { limit: 50270, rate: 0.20 },
+                    { limit: 125140, rate: 0.40 },
+                    { limit: Infinity, rate: 0.45 }
+                ],
+                socialSecurity: 0.09, // Class 4 NI
+                vat: 0.20,
+                vatThreshold: 85000,
+                tips: [
+                    "• VAT threshold is £85k - register only if above",
+                    "• Self Assessment deadline: January 31st",
+                    "• Trading allowance: £1,000 tax-free"
+                ]
+            },
+            US: {
+                name: 'United States',
+                currency: '$',
+                brackets: [
+                    { limit: 11600, rate: 0.10 },
+                    { limit: 47150, rate: 0.12 },
+                    { limit: 100525, rate: 0.22 },
+                    { limit: 191950, rate: 0.24 },
+                    { limit: 243725, rate: 0.32 },
+                    { limit: 609350, rate: 0.35 },
+                    { limit: Infinity, rate: 0.37 }
+                ],
+                socialSecurity: 0.153, // Self-employment tax
+                vat: 0,
+                vatThreshold: Infinity,
+                tips: [
+                    "• Self-employment tax is 15.3% (Social Security + Medicare)",
+                    "• Quarterly estimated payments required",
+                    "• Deduct half of SE tax from income tax"
+                ]
+            },
+            HR: {
+                name: 'Croatia',
+                currency: '€',
+                brackets: [
+                    { limit: 50400, rate: 0.20 },
+                    { limit: Infinity, rate: 0.30 }
+                ],
+                socialSecurity: 0.20,
+                vat: 0.25,
+                vatThreshold: 40000,
+                tips: [
+                    "• Paušalni obrt (flat-rate) for income under €40k",
+                    "• Health insurance contribution mandatory",
+                    "• City surtax varies (up to 18% in Zagreb)"
+                ]
+            },
+            SI: {
+                name: 'Slovenia',
+                currency: '€',
+                brackets: [
+                    { limit: 8755, rate: 0.16 },
+                    { limit: 25750, rate: 0.26 },
+                    { limit: 51500, rate: 0.33 },
+                    { limit: 74160, rate: 0.39 },
+                    { limit: Infinity, rate: 0.50 }
+                ],
+                socialSecurity: 0.38,
+                vat: 0.22,
+                vatThreshold: 50000,
+                tips: [
+                    "• Normirani s.p. (flat-rate) popular for side hustles",
+                    "• Social contributions are high but comprehensive",
+                    "• VAT threshold €50k for small businesses"
+                ]
+            }
+        };
+
+        let chart = null;
+        let currentCountry = 'DE';
+
+        function updateCountry() {
+            currentCountry = document.getElementById('countrySelect').value;
+            calculate();
+            updateTips();
+        }
+
+        function updateTips() {
+            const rules = taxRules[currentCountry];
+            const tipsList = document.getElementById('tipsList');
+            tipsList.innerHTML = rules.tips.map(tip => `<li>${tip}</li>`).join('');
+        }
+
+        function calculateTax(taxableIncome, country) {
+            const rules = taxRules[country];
+            let tax = 0;
+            let previousLimit = 0;
+
+            for (const bracket of rules.brackets) {
+                if (taxableIncome <= previousLimit) break;
+                
+                const taxableInBracket = Math.min(taxableIncome, bracket.limit) - previousLimit;
+                if (taxableInBracket > 0) {
+                    tax += taxableInBracket * bracket.rate;
+                }
+                previousLimit = bracket.limit;
+            }
+
+            return tax;
+        }
+
+        function calculate() {
+            const timePeriod = document.getElementById('timePeriod').value;
+            const grossInput = parseFloat(document.getElementById('grossIncome').value) || 0;
+            const expensesInput = parseFloat(document.getElementById('expenses').value) || 0;
+
+            // Convert to yearly
+            let multiplier = timePeriod === 'monthly' ? 12 : timePeriod === 'quarterly' ? 4 : 1;
+            const yearlyGross = grossInput * multiplier;
+            const yearlyExpenses = expensesInput * multiplier;
+
+            const rules = taxRules[currentCountry];
+            const taxableIncome = Math.max(0, yearlyGross - yearlyExpenses);
+            
+            // Calculate income tax
+            const incomeTax = calculateTax(taxableIncome, currentCountry);
+            
+            // Calculate social security
+            const socialSecurity = taxableIncome * rules.socialSecurity;
+            
+            // Total tax
+            const totalTax = incomeTax + socialSecurity;
+            const effectiveRate = yearlyGross > 0 ? (totalTax / yearlyGross * 100) : 0;
+            const netIncome = yearlyGross - totalTax - yearlyExpenses;
+
+            // Update display
+            const currency = rules.currency;
+            document.getElementById('taxAmount').textContent = `${currency}${Math.round(totalTax).toLocaleString()}`;
+            document.getElementById('taxPeriod').textContent = 'per year';
+            document.getElementById('effectiveRate').textContent = `${effectiveRate.toFixed(1)}%`;
+            
+            document.getElementById('displayGross').textContent = `${currency}${yearlyGross.toLocaleString()}`;
+            document.getElementById('displayTax').textContent = `-${currency}${Math.round(totalTax).toLocaleString()}`;
+            document.getElementById('displayExpenses').textContent = `-${currency}${yearlyExpenses.toLocaleString()}`;
+            document.getElementById('netIncome').textContent = `${currency}${Math.round(netIncome).toLocaleString()}`;
+            
+            document.getElementById('monthlyTax').textContent = `${currency}${Math.round(totalTax / 12).toLocaleString()}`;
+            document.getElementById('monthlyNet').textContent = `${currency}${Math.round(netIncome / 12).toLocaleString()}`;
+
+            // Update breakdown
+            const breakdownList = document.getElementById('breakdownList');
+            breakdownList.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <span class="text-slate-300">Income Tax</span>
+                    </div>
+                    <span class="font-medium">${currency}${Math.round(incomeTax).toLocaleString()}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-orange-500"></div>
+                        <span class="text-slate-300">Social Security</span>
+                    </div>
+                    <span class="font-medium">${currency}${Math.round(socialSecurity).toLocaleString()}</span>
+                </div>
+                <div class="flex justify-between items-center pt-3 border-t border-slate-600">
+                    <span class="text-slate-300 font-medium">Total Tax Burden</span>
+                    <span class="font-bold text-emerald-400">${currency}${Math.round(totalTax).toLocaleString()}</span>
+                </div>
+            `;
+
+            // Update chart
+            updateChart(netIncome, totalTax, yearlyExpenses);
+        }
+
+        function updateChart(net, tax, expenses) {
+            const ctx = document.getElementById('taxChart').getContext('2d');
+            
+            if (chart) {
+                chart.destroy();
+            }
+
+            chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['You Keep', 'Taxes', 'Expenses'],
+                    datasets: [{
+                        data: [Math.max(0, net), tax, expenses],
+                        backgroundColor: ['#10b981', '#ef4444', '#f59e0b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94a3b8' }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+        }
+
+        function setPreset(amount, period) {
+            document.getElementById('grossIncome').value = amount;
+            document.getElementById('timePeriod').value = period;
+            document.getElementById('expenses').value = Math.round(amount * 0.1); // 10% default expenses
+            calculate();
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            calculate();
+            updateTips();
+        });
+    </script>
+</body>
+</html>
